@@ -1,7 +1,7 @@
 import React from "react";
 import { Box } from "@mui/material";
 import Sidebar from "./../components/Sidebar";
-import AppBarHeader from "./../components/AppbarHeader";
+import AppBarHeader from "../components/AppBarHeader";
 
 interface PageContainerProps {
   children: React.ReactNode;
@@ -13,7 +13,7 @@ const PageContainer: React.FC<PageContainerProps> = ({ children }) => {
       sx={{
         display: "flex",
         minHeight: "100vh",
-        backgroundColor: "#f4f6f8",
+        backgroundColor: "white",
         paddingTop: "64px",
       }}
     >

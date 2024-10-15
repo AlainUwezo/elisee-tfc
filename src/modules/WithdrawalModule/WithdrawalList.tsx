@@ -1,31 +1,32 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// WithdrawalList.tsx
 import React, { useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import {
   Button,
   Dialog,
   DialogTitle,
-  DialogContent,
   DialogActions,
   Typography,
+  IconButton,
 } from "@mui/material";
 import WithdrawalForm from "./WithdrawalForm";
+import DeleteIcon from "@mui/icons-material/Delete"; // Import de l'icône de suppression
+import { Add } from "@mui/icons-material";
 
 const initialWithdrawals = [
   {
     id: 1,
-    clientName: "Client A",
-    parcelName: "Colis A",
-    date: "2024-09-28",
-    status: "Retiré",
+    client: { id: 1, name: "Client A" },
+    parcel: { id: 1, token: "JETON123" },
+    date: "2024-09-28T14:00:00",
+    status: 3,
   },
   {
     id: 2,
-    clientName: "Client B",
-    parcelName: "Colis B",
-    date: "2024-09-29",
-    status: "Retiré",
+    client: { id: 2, name: "Client B" },
+    parcel: { id: 2, token: "JETON456" },
+    date: "2024-09-29T15:30:00",
+    status: 3,
   },
   // Ajoutez plus de retraits si nécessaire
 ];
@@ -33,11 +34,6 @@ const initialWithdrawals = [
 const clients = [
   { id: 1, name: "Client A" },
   { id: 2, name: "Client B" },
-];
-
-const parcels = [
-  { id: 1, name: "Colis A" },
-  { id: 2, name: "Colis B" },
 ];
 
 const WithdrawalList: React.FC = () => {
@@ -77,49 +73,60 @@ const WithdrawalList: React.FC = () => {
 
   const columns = [
     { field: "id", headerName: "ID", width: 90 },
-    { field: "clientName", headerName: "Nom du Client", width: 150 },
-    { field: "parcelName", headerName: "Nom du Colis", width: 150 },
-    { field: "date", headerName: "Date", width: 150 },
+    {
+      field: "client",
+      headerName: "Nom du Client",
+      width: 150,
+      renderCell: (params: any) => params.row.client?.name || "Inconnu",
+    },
+    {
+      field: "parcel",
+      headerName: "Jeton du Colis",
+      width: 150,
+      renderCell: (params: any) => params.row.parcel?.token || "Inconnu",
+    },
+    { field: "date", headerName: "Date", width: 180 },
     { field: "status", headerName: "Statut", width: 150 },
     {
       field: "action",
       headerName: "Actions",
       width: 250,
-      renderCell: (params: any) => (
-        <>
-          <Button
-            variant="outlined"
-            color="primary"
-            onClick={() => handleOpenForm(params.row)}
-          >
-            Modifier
-          </Button>
-          <Button
-            variant="contained"
-            color="secondary"
-            onClick={() => handleDelete(params.row.id)}
-            style={{ marginLeft: "10px" }}
-          >
-            Supprimer
-          </Button>
-        </>
-      ),
+      renderCell: (params: any) => {
+        const { row } = params;
+        return (
+          <>
+            <Button
+              variant="outlined"
+              color="primary"
+              onClick={() => handleOpenForm(row)} // Passer la ligne sélectionnée pour modifier
+            >
+              Modifier
+            </Button>
+            <IconButton
+              color="error"
+              onClick={() => handleDelete(row.id)} // Passer l'ID de la ligne sélectionnée pour supprimer
+              style={{ marginLeft: "10px" }}
+            >
+              <DeleteIcon />
+            </IconButton>
+          </>
+        );
+      },
     },
   ];
 
   return (
-    <div className="grid grid-cols-1">
-      <div className="mb-4">
-        <Typography variant="h4" gutterBottom>
-          Liste des retraits
-        </Typography>
-        <Typography variant="subtitle1" gutterBottom>
-          Nombre de colis: {withdrawals.length}
+    <div className="grid grid-cols-1 p-4">
+      <div className="mb-4 flex justify-between items-center">
+        <Typography variant="h6" className="font-bold">
+          Liste des retraits ({withdrawals.length})
         </Typography>
         <Button
           variant="contained"
+          startIcon={<Add />}
           color="primary"
-          onClick={() => handleOpenForm()}
+          className="capitalize"
+          onClick={() => handleOpenForm()} // Ouvrir le formulaire pour ajouter un retrait
         >
           Ajouter Retrait
         </Button>
@@ -129,45 +136,64 @@ const WithdrawalList: React.FC = () => {
         columns={columns}
         pageSize={5}
         rowsPerPageOptions={[5]}
+        autoHeight
+        disableSelectionOnClick
+        sx={{
+          border: "none",
+          "& .MuiDataGrid-columnHeaders": {
+            backgroundColor: "#f5f5f5",
+            fontWeight: "bold",
+          },
+          "& .MuiDataGrid-row": {
+            transition: "background-color 0.3s",
+            "&:hover": {
+              backgroundColor: "#f0f0f0",
+            },
+          },
+        }}
       />
 
       {/* Boîte de dialogue de confirmation de suppression */}
       <Dialog open={openDeleteDialog} onClose={cancelDelete}>
         <DialogTitle>Confirmation de Suppression</DialogTitle>
-        <DialogContent>
-          Êtes-vous sûr de vouloir supprimer ce retrait ?
-        </DialogContent>
         <DialogActions>
           <Button onClick={cancelDelete} color="primary">
             Annuler
           </Button>
-          <Button onClick={confirmDelete} color="secondary">
+          <Button onClick={confirmDelete} color="error">
             Supprimer
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Boîte de dialogue pour le formulaire de retrait */}
-      <WithdrawalForm
-        open={openForm}
-        onClose={() => setOpenForm(false)}
-        withdrawal={selectedWithdrawal}
-        clients={clients}
-        parcels={parcels}
-        onSave={(withdrawal) => {
-          if (withdrawal.id) {
-            // Modifier un retrait existant
-            setWithdrawals(
-              withdrawals.map((w) => (w.id === withdrawal.id ? withdrawal : w))
-            );
-          } else {
-            // Ajouter un nouveau retrait
-            const newWithdrawal = { ...withdrawal, id: withdrawals.length + 1 }; // Exemple d'ajout d'ID
-            setWithdrawals([...withdrawals, newWithdrawal]);
-          }
-          setOpenForm(false);
-        }}
-      />
+      <Dialog open={openForm} onClose={() => setOpenForm(false)}>
+        <WithdrawalForm
+          parcels={[]} // Passez ici les parcelles appropriées
+          open={openForm}
+          onClose={() => setOpenForm(false)}
+          withdrawal={selectedWithdrawal}
+          onSave={(withdrawal) => {
+            if (withdrawal.id) {
+              // Modifier un retrait existant
+              setWithdrawals(
+                withdrawals.map((w) =>
+                  w.id === withdrawal.id ? withdrawal : w
+                )
+              );
+            } else {
+              // Ajouter un nouveau retrait
+              const newWithdrawal = {
+                ...withdrawal,
+                id: withdrawals.length + 1,
+              };
+              setWithdrawals([...withdrawals, newWithdrawal]);
+            }
+            setOpenForm(false);
+          }}
+          clients={clients}
+        />
+      </Dialog>
     </div>
   );
 };

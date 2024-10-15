@@ -4,7 +4,8 @@ import Client from "./modules/ClientModule/Client";
 import Withdrawal from "./modules/WithdrawalModule/Withdrawal";
 import { StyledEngineProvider } from "@mui/material";
 import Parcel from "./modules/ParcelModule/Parcel";
-import Dashboard from "./modules/DashboardModule/dashboard";
+import AjoutColis from "./modules/ParcelModule/AjoutColis";
+import Dashboard from "./modules/DashboardModule/Dashboard";
 
 function App() {
   return (
@@ -15,6 +16,7 @@ function App() {
           <Route path="/clients" element={<Client />} />
           <Route path="/withdrawals" element={<Withdrawal />} />
           <Route path="/parcels" element={<Parcel />} />
+          <Route path="/add-colis" element={<AjoutColis />} />
           <Route path="/dashboard" element={<Dashboard />} />
         </Routes>
       </Router>

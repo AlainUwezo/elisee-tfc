@@ -20,7 +20,7 @@ interface WithdrawalFormProps {
   withdrawal: any | null;
   onSave: (withdrawal: any) => void;
   clients: { id: number; name: string }[];
-  parcels: { id: number; name: string }[];
+  parcels: { id: number; token: string }[]; // Remplacer `name` par `token`
 }
 
 const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
@@ -29,16 +29,24 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
   withdrawal,
   onSave,
   clients,
-  parcels,
 }) => {
+  // Liste des jetons par défaut
+  const defaultParcels = [
+    { id: 1, token: "JETON123" },
+    { id: 2, token: "JETON456" },
+    { id: 3, token: "JETON789" },
+    { id: 4, token: "JETON101" },
+    { id: 5, token: "JETON202" },
+  ];
+
   const [client, setClient] = useState<{ id: number; name: string } | null>(
     null
   );
-  const [parcel, setParcel] = useState<{ id: number; name: string } | null>(
+  const [parcel, setParcel] = useState<{ id: number; token: string } | null>(
     null
-  );
+  ); // Utiliser `token` au lieu de `name`
   const [date, setDate] = useState<string>("");
-  const [status, setStatus] = useState<number>(0);
+  const [status, setStatus] = useState<number>(3); // Statut par défaut : "Retiré"
 
   useEffect(() => {
     if (withdrawal) {
@@ -49,8 +57,10 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
     } else {
       setClient(null);
       setParcel(null);
-      setDate(new Date().toISOString().split("T")[0]); // Default to today
-      setStatus(0); // Default status to "En stock"
+      // Date actuelle avec l'heure
+      const currentDateTime = new Date().toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
+      setDate(currentDateTime);
+      setStatus(3); // Statut "Retiré"
     }
   }, [withdrawal]);
 
@@ -87,22 +97,22 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
           )}
         />
         <Autocomplete
-          options={parcels}
-          getOptionLabel={(option) => option.name}
+          options={defaultParcels} // Utiliser la liste des jetons par défaut
+          getOptionLabel={(option) => option.token} // Affiche le jeton du colis
           value={parcel}
           onChange={(event, newValue) => setParcel(newValue)}
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Nom du Colis"
+              label="Jeton du Colis" // Affiche le jeton du colis
               margin="normal"
               fullWidth
             />
           )}
         />
         <TextField
-          label="Date"
-          type="date"
+          label="Date de Retrait"
+          type="datetime-local" // Format date + heure
           value={date}
           onChange={(e) => setDate(e.target.value)}
           fullWidth
@@ -117,6 +127,7 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
             value={status}
             onChange={(e) => setStatus(e.target.value as number)}
           >
+            <MenuItem value={3}>Retiré</MenuItem> {/* Statut "Retiré" */}
             <MenuItem value={0}>En stock</MenuItem>
             <MenuItem value={1}>En route</MenuItem>
             <MenuItem value={2}>Expédié</MenuItem>

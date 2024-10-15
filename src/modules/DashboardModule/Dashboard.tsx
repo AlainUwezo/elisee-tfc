@@ -1,21 +1,11 @@
 import React from "react";
 import {
-  Container,
   Typography,
   Box,
-  Paper,
   Grid,
-  Card,
   CardContent,
-  CardHeader,
   Divider,
   IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
 } from "@mui/material";
 import { Bar, Pie } from "react-chartjs-2";
 import {
@@ -178,45 +168,48 @@ const Dashboard: React.FC = () => {
 
   return (
     <PageContainer>
-      <Typography variant="h4" align="center">
-        Tableau de Bord
-      </Typography>
-      <IconButton style={{ float: "right" }} aria-label="refresh">
-        <RefreshIcon />
-      </IconButton>
+      <div className="flex justify-between mb-4">
+        <Typography variant="h6" className="font-bold">
+          Tableau de Bord
+        </Typography>
+        <IconButton style={{ float: "right" }} aria-label="refresh">
+          <RefreshIcon />
+        </IconButton>
+      </div>
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardHeader title="Total Clients" />
+          <div>
+            <p className="mb-3">Nombre des colis</p>
             <Divider />
             <CardContent>
               <Typography variant="h3" align="center" color="primary">
                 {totalClients}
               </Typography>
             </CardContent>
-          </Card>
+          </div>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardHeader title="Total Colis" />
-            <Divider />
+          <div className="border-r border-l">
+            <p className="mb-4 text-center">
+              Nombre <strong>colis</strong>
+            </p>
             <CardContent>
               <Typography variant="h3" align="center" color="primary">
                 {totalParcels}
               </Typography>
             </CardContent>
-          </Card>
+          </div>
         </Grid>
         <Grid item xs={12} sm={6} md={4}>
-          <Card>
-            <CardHeader title="Total Retraits" />
+          <div>
+            <p className="mb-3 text-end">Nombre des retraits</p>
             <Divider />
             <CardContent>
               <Typography variant="h3" align="center" color="primary">
                 {totalWithdrawals}
               </Typography>
             </CardContent>
-          </Card>
+          </div>
         </Grid>
       </Grid>
       <Box
@@ -224,59 +217,51 @@ const Dashboard: React.FC = () => {
         flexDirection={{ xs: "column", sm: "row" }}
         marginTop={3}
       >
-        <Box flex={1} marginRight={{ sm: 2 }} marginBottom={{ xs: 2, sm: 0 }}>
-          <Paper style={{ padding: 16, height: 300 }}>
-            <Typography variant="h6" align="center" gutterBottom>
-              Comparaison Retraits / Colis Expédiés
+        <Box
+          flex={1}
+          sx={{ marginTop: 6 }}
+          marginRight={{ sm: 2 }}
+          marginBottom={{ xs: 2, sm: 0 }}
+        >
+          <div className="h-[300px] flex flex-col items-center">
+            <Typography
+              variant="subtitle2"
+              align="center"
+              className="font-[500]"
+              gutterBottom
+            >
+              Nombre des colis par statut
             </Typography>
-            <Divider />
-            <Bar
-              data={comparisonData}
-              options={{ maintainAspectRatio: false, responsive: true }}
-            />
-          </Paper>
-        </Box>
-        <Box flex={1} marginLeft={{ sm: 2 }}>
-          <Paper style={{ padding: 16, height: 300 }}>
-            <Typography variant="h6" align="center" gutterBottom>
-              Statut des Colis
-            </Typography>
-            <Divider />
             <Pie
               data={parcelData}
-              options={{ maintainAspectRatio: false, responsive: true }}
+              options={{
+                plugins: {
+                  legend: {
+                    position: "left",
+                    align: "center",
+                    labels: {
+                      boxWidth: 12,
+                      padding: 20,
+                    },
+                  },
+                },
+              }}
+              className=""
             />
-          </Paper>
+          </div>
+        </Box>
+        <Box flex={1}>
+          <div
+            style={{ padding: 16, height: 300 }}
+            className="border-t border-l mt-[32px]"
+          >
+            <Typography variant="h6" align="center" gutterBottom>
+              Comparaison Retraits vs Colis Expédiés
+            </Typography>
+            <Bar data={comparisonData} />
+          </div>
         </Box>
       </Box>
-
-      <Typography variant="h5" gutterBottom style={{ marginTop: 32 }}>
-        Historique des Retraits
-      </Typography>
-      <TableContainer component={Paper}>
-        <Table>
-          <TableHead>
-            <TableRow>
-              <TableCell>ID</TableCell>
-              <TableCell>Nom du Client</TableCell>
-              <TableCell>Nom du Colis</TableCell>
-              <TableCell>Date</TableCell>
-              <TableCell>Status</TableCell>
-            </TableRow>
-          </TableHead>
-          <TableBody>
-            {withdrawals.map((withdrawal) => (
-              <TableRow key={withdrawal.id}>
-                <TableCell>{withdrawal.id}</TableCell>
-                <TableCell>{withdrawal.clientName}</TableCell>
-                <TableCell>{withdrawal.parcelName}</TableCell>
-                <TableCell>{withdrawal.date}</TableCell>
-                <TableCell>{withdrawal.status}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </TableContainer>
     </PageContainer>
   );
 };

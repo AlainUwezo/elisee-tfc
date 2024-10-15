@@ -2,14 +2,14 @@ import {
   AppBar,
   Toolbar,
   Typography,
-  //   Avatar,
   Box,
   IconButton,
+  Divider,
 } from "@mui/material";
-import logo from "./../../../assets/logo.png";
 import { useNavigate } from "react-router-dom";
-import AccountCircleIcon from "@mui/icons-material/AccountCircle"; // Icône pour le profil
-import LogoutIcon from "@mui/icons-material/Logout"; // Icône pour la déconnexion
+import AccountCircleIcon from "@mui/icons-material/AccountCircle";
+import LogoutIcon from "@mui/icons-material/Logout";
+import MenuIcon from "@mui/icons-material/Menu";
 
 const AppBarHeader = () => {
   const navigate = useNavigate();
@@ -24,38 +24,35 @@ const AppBarHeader = () => {
     <AppBar
       position="fixed"
       sx={{
-        backgroundColor: "#1a202c",
+        backgroundColor: "#ffffff", // Fond blanc
         width: `calc(100% - 240px)`,
         ml: "240px",
       }}
+      elevation={0}
     >
       <Toolbar>
         {/* Logo et Titre */}
         <Box sx={{ display: "flex", alignItems: "center", flexGrow: 1 }}>
-          <img src={logo} alt="Logo" style={{ width: 40, marginRight: 10 }} />
-          <Typography variant="h6" noWrap sx={{ color: "#ffdd57" }}>
-            Mon Application de Gestion
-          </Typography>
+          <IconButton>
+            <MenuIcon />
+          </IconButton>
         </Box>
 
         {/* Section de l'utilisateur */}
         <Box sx={{ display: "flex", alignItems: "center" }}>
-          <AccountCircleIcon sx={{ color: "#e2e8f0", marginRight: 1 }} />
-          {/* <Avatar
-            alt={userName}
-            style={{ width: "24px", height: "24px" }}
-            src="/static/images/avatar/1.jpg"
-            sx={{ marginRight: 1 }}
-          /> */}
-          <Typography variant="body1" sx={{ color: "#e2e8f0", marginRight: 2 }}>
+          <AccountCircleIcon sx={{ color: "#2c3e50", marginRight: 1 }} />
+          <Typography
+            variant="body1"
+            sx={{ color: "#2c3e50", marginRight: 2, fontWeight: "500" }} // Texte sombre
+          >
             {userName}
           </Typography>
           <IconButton
             onClick={handleLogout}
             sx={{
-              color: "#e2e8f0",
+              color: "#2c3e50",
               "&:hover": {
-                color: "#ffdd57",
+                color: "#ff4757", // Couleur rouge vif au survol
               },
             }}
             size="small"
@@ -65,6 +62,7 @@ const AppBarHeader = () => {
           </IconButton>
         </Box>
       </Toolbar>
+      <Divider sx={{ backgroundColor: "#f1f1f1", marginBottom: 1 }} />
     </AppBar>
   );
 };
