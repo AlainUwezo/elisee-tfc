@@ -9,6 +9,7 @@ import SignIn from "./modules/AuthModule/signIn";
 import SignUp from "./modules/AuthModule/signUp";
 import { AuthProvider } from "./contexts/AuthContext";
 import ProtectedRoute from "./layoutes/ProtectedRoute";
+import CheckParcel from "./modules/User/CheckParcel";
 
 function App() {
   return (
@@ -17,6 +18,7 @@ function App() {
         <Router>
           <Routes>
             <Route path="/" element={<SignIn />} />
+            <Route path="/check-parcel" element={<CheckParcel />} />
             <Route path="/signup" element={<SignUp />} />
             <Route
               path="/clients"
