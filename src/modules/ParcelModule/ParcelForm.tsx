@@ -183,7 +183,6 @@ const EditParcelDialog: React.FC<EditParcelDialogProps> = ({
           >
             <MenuItem value={0}>En stock</MenuItem>
             <MenuItem value={1}>En route</MenuItem>
-            <MenuItem value={2}>Expédié</MenuItem>
           </Select>
         </FormControl>
 

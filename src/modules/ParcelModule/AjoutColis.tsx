@@ -11,6 +11,9 @@ import {
   MenuItem,
   Typography,
   Paper,
+  Snackbar,
+  Alert,
+  CircularProgress, // Importer CircularProgress pour le loader
 } from "@mui/material";
 import {
   Add,
@@ -19,11 +22,18 @@ import {
   Person,
   Email,
   Phone,
-  LocationOn,
 } from "@mui/icons-material";
 import PageContainer from "../common/layouts/PageContainer";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
-// Simulated client data
+// Fonction pour générer un jeton unique de 8 caractères
+const generateUniqueToken = (clientName: string): string => {
+  const timestamp = Date.now().toString(36); // Conversion de l'horodatage en base 36
+  const clientHash = clientName.slice(0, 4).toLowerCase().padEnd(4, "x"); // Prendre les 4 premiers caractères du nom du client
+
+  return (timestamp + clientHash).slice(0, 8); // Retourner les 8 premiers caractères
+};
+
 const AjoutColis: React.FC = () => {
   const [nom, setNom] = useState("");
   const [poids, setPoids] = useState("");
@@ -46,7 +56,12 @@ const AjoutColis: React.FC = () => {
     expediteurNom: "",
   });
 
-  const handleSubmit = () => {
+  const [openSnackbar, setOpenSnackbar] = useState(false);
+  const [successMessage, setSuccessMessage] = useState("");
+
+  const [loading, setLoading] = useState(false); // État pour gérer le loader
+
+  const handleSubmit = async () => {
     const newErrors = {
       nom: "",
       poids: "",
@@ -57,12 +72,12 @@ const AjoutColis: React.FC = () => {
       expediteurNom: "",
     };
 
-    // Validation for parcel details
+    // Validation pour les détails du colis
     if (!nom) newErrors.nom = "Veuillez remplir le nom.";
     if (!poids) newErrors.poids = "Veuillez remplir le poids.";
     if (!prix) newErrors.prix = "Veuillez remplir le prix.";
 
-    // Validation for client details
+    // Validation pour les détails du client
     if (!clientNom) newErrors.clientNom = "Veuillez entrer le nom du client.";
     if (!clientEmail)
       newErrors.clientEmail = "Veuillez entrer l'email du client.";
@@ -76,22 +91,51 @@ const AjoutColis: React.FC = () => {
       return;
     }
 
+    const jeton = generateUniqueToken(clientNom); // Générer le jeton unique
     const newParcel = {
       nom,
       poids,
       prix,
       statut,
-      client: {
-        nom: clientNom,
-        email: clientEmail,
-        telephone: clientTelephone,
-        expediteur: expediteurNom,
-        adresse: clientAdresse,
-      },
+      token: `${jeton}`,
+      client_nom: clientNom,
+      client_email: clientEmail,
+      client_telephone: clientTelephone,
+      expediteur_nom: expediteurNom,
+      adresse: clientAdresse,
     };
 
-    console.log("Colis ajouté:", newParcel);
-    // Add your save logic here (e.g., API call)
+    console.log(newParcel);
+
+    setLoading(true); // Activer le loader
+
+    const { data, error } = await supabase.from("colis").insert([newParcel]);
+
+    setLoading(false); // Désactiver le loader
+
+    if (error) {
+      console.error("Erreur lors de l'ajout du colis:", error);
+      return;
+    }
+
+    console.log("Colis ajouté:", data);
+    setSuccessMessage("Colis ajouté avec succès !");
+    setOpenSnackbar(true);
+
+    // Réinitialiser le formulaire
+    setNom("");
+    setPoids("");
+    setPrix("");
+    setStatut(0);
+    setClientNom("");
+    setClientEmail("");
+    setClientTelephone("");
+    setExpediteurNom("");
+    setClientAdresse("");
+  };
+
+  const handleCloseSnackbar = () => {
+    setOpenSnackbar(false);
   };
 
   return (
@@ -188,7 +232,6 @@ const AjoutColis: React.FC = () => {
               >
                 <MenuItem value={0}>En stock</MenuItem>
                 <MenuItem value={1}>En route</MenuItem>
-                <MenuItem value={2}>Expédié</MenuItem>
               </Select>
             </FormControl>
           </Grid>
@@ -251,19 +294,12 @@ const AjoutColis: React.FC = () => {
               type="tel"
             />
             <TextField
-              label="Nom de l'Expéditeur"
+              label="Nom de l'expéditeur"
               variant="outlined"
               fullWidth
               margin="normal"
               value={expediteurNom}
               onChange={(e) => setExpediteurNom(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Person />
-                  </InputAdornment>
-                ),
-              }}
               error={!!errors.expediteurNom}
               helperText={errors.expediteurNom}
             />
@@ -274,28 +310,42 @@ const AjoutColis: React.FC = () => {
               margin="normal"
               value={clientAdresse}
               onChange={(e) => setClientAdresse(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <LocationOn />
-                  </InputAdornment>
-                ),
-              }}
             />
           </Grid>
         </Grid>
 
-        <div className="flex justify-end">
-          <Button
-            onClick={handleSubmit}
-            color="primary"
-            variant="contained"
-            sx={{ marginTop: 3 }}
-          >
-            Soumettre
-          </Button>
-        </div>
+        {/* Affichage du loader pendant la soumission */}
+        {loading && (
+          <div style={{ textAlign: "center", margin: "20px 0" }}>
+            <CircularProgress />
+            <Typography variant="body1">En cours de soumission...</Typography>
+          </div>
+        )}
+
+        <Button
+          variant="contained"
+          color="primary"
+          fullWidth
+          onClick={handleSubmit}
+          disabled={loading} // Désactiver le bouton pendant la soumission
+        >
+          Ajouter le Colis
+        </Button>
       </Paper>
+
+      <Snackbar
+        open={openSnackbar}
+        autoHideDuration={6000}
+        onClose={handleCloseSnackbar}
+      >
+        <Alert
+          onClose={handleCloseSnackbar}
+          severity="success"
+          sx={{ width: "100%" }}
+        >
+          {successMessage}
+        </Alert>
+      </Snackbar>
     </PageContainer>
   );
 };

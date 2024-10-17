@@ -5,11 +5,14 @@ import LocalShippingIcon from "@mui/icons-material/LocalShippingOutlined"; // Ut
 import AddBoxIcon from "@mui/icons-material/AddBoxOutlined"; // Importer l'icône pour Ajouter colis
 import { useLocation, Link } from "react-router-dom";
 import logo from "./../../../assets/logo.png";
+import { useAuth } from "../../../contexts/AuthContext";
 
 const Sidebar = () => {
   const location = useLocation();
 
   const isActive = (path: string) => location.pathname === path;
+
+  const { userInfo } = useAuth();
 
   return (
     <Drawer
@@ -45,31 +48,34 @@ const Sidebar = () => {
 
       <List>
         {/* Tableau de bord */}
-        <Link to="/dashboard" style={{ textDecoration: "none" }}>
-          <Button
-            fullWidth
-            variant="text"
-            sx={{
-              justifyContent: "flex-start",
-              color: isActive("/dashboard") ? "#2980b9" : "#2c3e50",
-              backgroundColor: isActive("/dashboard")
-                ? "#dfe6e9"
-                : "transparent",
-              "&:hover": { backgroundColor: "#bdc3c7" },
-              py: 1.5, // Réduire la hauteur du bouton
-              borderRadius: "4px", // Bords arrondis
-              transition: "background-color 0.3s", // Transition douce
-            }}
-          >
-            <DashboardIcon sx={{ color: "inherit", marginRight: 2 }} />
-            <Typography
-              variant="subtitle2"
-              sx={{ textTransform: "capitalize" }}
+
+        {userInfo?.role === "ROLE_ADMIN" && (
+          <Link to="/dashboard" style={{ textDecoration: "none" }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{
+                justifyContent: "flex-start",
+                color: isActive("/dashboard") ? "#2980b9" : "#2c3e50",
+                backgroundColor: isActive("/dashboard")
+                  ? "#dfe6e9"
+                  : "transparent",
+                "&:hover": { backgroundColor: "#bdc3c7" },
+                py: 1.5, // Réduire la hauteur du bouton
+                borderRadius: "4px", // Bords arrondis
+                transition: "background-color 0.3s", // Transition douce
+              }}
             >
-              Tableau de bord
-            </Typography>
-          </Button>
-        </Link>
+              <DashboardIcon sx={{ color: "inherit", marginRight: 2 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{ textTransform: "capitalize" }}
+              >
+                Tableau de bord
+              </Typography>
+            </Button>
+          </Link>
+        )}
 
         {/* Clients */}
         {/* <Link to="/clients" style={{ textDecoration: "none" }}>
@@ -94,83 +100,94 @@ const Sidebar = () => {
         </Link> */}
 
         {/* Gestion Retrait */}
-        <Link to="/withdrawals" style={{ textDecoration: "none" }}>
-          <Button
-            fullWidth
-            variant="text"
-            sx={{
-              justifyContent: "flex-start",
-              color: isActive("/withdrawals") ? "#2980b9" : "#2c3e50",
-              backgroundColor: isActive("/withdrawals")
-                ? "#dfe6e9"
-                : "transparent",
-              "&:hover": { backgroundColor: "#bdc3c7" },
-              py: 1.5, // Réduire la hauteur du bouton
-              borderRadius: "4px",
-              transition: "background-color 0.3s",
-            }}
-          >
-            <AssignmentReturnIcon sx={{ color: "inherit", marginRight: 2 }} />
-            <Typography
-              variant="subtitle2"
-              sx={{ textTransform: "capitalize" }}
+        {(userInfo?.role === "ROLE_ADMIN" ||
+          userInfo?.role === "ROLE_RETRAIT") && (
+          <Link to="/withdrawals" style={{ textDecoration: "none" }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{
+                justifyContent: "flex-start",
+                color: isActive("/withdrawals") ? "#2980b9" : "#2c3e50",
+                backgroundColor: isActive("/withdrawals")
+                  ? "#dfe6e9"
+                  : "transparent",
+                "&:hover": { backgroundColor: "#bdc3c7" },
+                py: 1.5, // Réduire la hauteur du bouton
+                borderRadius: "4px",
+                transition: "background-color 0.3s",
+              }}
             >
-              Gestion retrait
-            </Typography>
-          </Button>
-        </Link>
+              <AssignmentReturnIcon sx={{ color: "inherit", marginRight: 2 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{ textTransform: "capitalize" }}
+              >
+                Gestion retrait
+              </Typography>
+            </Button>
+          </Link>
+        )}
 
         {/* Gestion Colis */}
-        <Link to="/parcels" style={{ textDecoration: "none" }}>
-          <Button
-            fullWidth
-            variant="text"
-            sx={{
-              justifyContent: "flex-start",
-              color: isActive("/parcels") ? "#2980b9" : "#2c3e50",
-              backgroundColor: isActive("/parcels") ? "#dfe6e9" : "transparent",
-              "&:hover": { backgroundColor: "#bdc3c7" },
-              py: 1.5, // Réduire la hauteur du bouton
-              borderRadius: "4px",
-              transition: "background-color 0.3s",
-            }}
-          >
-            <LocalShippingIcon sx={{ color: "inherit", marginRight: 2 }} />
-            <Typography
-              variant="subtitle2"
-              sx={{ textTransform: "capitalize" }}
+        {(userInfo?.role === "ROLE_ADMIN" ||
+          userInfo?.role === "ROLE_COLIS") && (
+          <Link to="/parcels" style={{ textDecoration: "none" }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{
+                justifyContent: "flex-start",
+                color: isActive("/parcels") ? "#2980b9" : "#2c3e50",
+                backgroundColor: isActive("/parcels")
+                  ? "#dfe6e9"
+                  : "transparent",
+                "&:hover": { backgroundColor: "#bdc3c7" },
+                py: 1.5, // Réduire la hauteur du bouton
+                borderRadius: "4px",
+                transition: "background-color 0.3s",
+              }}
             >
-              Gestion colis
-            </Typography>
-          </Button>
-        </Link>
+              <LocalShippingIcon sx={{ color: "inherit", marginRight: 2 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{ textTransform: "capitalize" }}
+              >
+                Gestion colis
+              </Typography>
+            </Button>
+          </Link>
+        )}
 
         {/* Ajouter Colis */}
-        <Link to="/add-colis" style={{ textDecoration: "none" }}>
-          <Button
-            fullWidth
-            variant="text"
-            sx={{
-              justifyContent: "flex-start",
-              color: isActive("/add-colis") ? "#2980b9" : "#2c3e50",
-              backgroundColor: isActive("/add-colis")
-                ? "#dfe6e9"
-                : "transparent",
-              "&:hover": { backgroundColor: "#bdc3c7" },
-              py: 1.5, // Réduire la hauteur du bouton
-              borderRadius: "4px",
-              transition: "background-color 0.3s",
-            }}
-          >
-            <AddBoxIcon sx={{ color: "inherit", marginRight: 2 }} />
-            <Typography
-              variant="subtitle2"
-              sx={{ textTransform: "capitalize" }}
+
+        {userInfo?.role === "ROLE_ADMIN" && (
+          <Link to="/add-colis" style={{ textDecoration: "none" }}>
+            <Button
+              fullWidth
+              variant="text"
+              sx={{
+                justifyContent: "flex-start",
+                color: isActive("/add-colis") ? "#2980b9" : "#2c3e50",
+                backgroundColor: isActive("/add-colis")
+                  ? "#dfe6e9"
+                  : "transparent",
+                "&:hover": { backgroundColor: "#bdc3c7" },
+                py: 1.5, // Réduire la hauteur du bouton
+                borderRadius: "4px",
+                transition: "background-color 0.3s",
+              }}
             >
-              Ajouter colis
-            </Typography>
-          </Button>
-        </Link>
+              <AddBoxIcon sx={{ color: "inherit", marginRight: 2 }} />
+              <Typography
+                variant="subtitle2"
+                sx={{ textTransform: "capitalize" }}
+              >
+                Ajouter colis
+              </Typography>
+            </Button>
+          </Link>
+        )}
       </List>
     </Drawer>
   );

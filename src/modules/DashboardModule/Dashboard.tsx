@@ -1,4 +1,5 @@
-import React from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect } from "react";
 import {
   Typography,
   Box,
@@ -20,6 +21,7 @@ import {
 } from "chart.js";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PageContainer from "../common/layouts/PageContainer";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 // Enregistrer les échelles et les éléments nécessaires
 ChartJS.register(
@@ -33,111 +35,72 @@ ChartJS.register(
 );
 
 const Dashboard: React.FC = () => {
-  // Données statiques pour les retraits
-  const withdrawals = [
-    {
-      id: 1,
-      clientName: "Client 1",
-      parcelName: "Colis 1",
-      date: "2024-09-01",
-      status: "Retiré",
-    },
-    {
-      id: 2,
-      clientName: "Client 2",
-      parcelName: "Colis 2",
-      date: "2024-09-02",
-      status: "En attente",
-    },
-    {
-      id: 3,
-      clientName: "Client 3",
-      parcelName: "Colis 3",
-      date: "2024-09-03",
-      status: "Retiré",
-    },
-    {
-      id: 4,
-      clientName: "Client 4",
-      parcelName: "Colis 4",
-      date: "2024-09-04",
-      status: "Expédié",
-    },
-    {
-      id: 5,
-      clientName: "Client 5",
-      parcelName: "Colis 5",
-      date: "2024-09-05",
-      status: "En attente",
-    },
-    {
-      id: 6,
-      clientName: "Client 6",
-      parcelName: "Colis 6",
-      date: "2024-09-06",
-      status: "Retiré",
-    },
-    {
-      id: 7,
-      clientName: "Client 7",
-      parcelName: "Colis 7",
-      date: "2024-09-07",
-      status: "En attente",
-    },
-    {
-      id: 8,
-      clientName: "Client 8",
-      parcelName: "Colis 8",
-      date: "2024-09-08",
-      status: "Retiré",
-    },
-    {
-      id: 9,
-      clientName: "Client 9",
-      parcelName: "Colis 9",
-      date: "2024-09-09",
-      status: "Expédié",
-    },
-    {
-      id: 10,
-      clientName: "Client 10",
-      parcelName: "Colis 10",
-      date: "2024-09-10",
-      status: "Retiré",
-    },
-  ];
+  const [parcels, setParcels] = useState<any[]>([]);
+  const [withdrawals, setWithdrawals] = useState<any[]>([]);
+  const [averageWithdrawalTime, setAverageWithdrawalTime] = useState<number>(0);
 
-  // Données statiques pour les clients
-  const clients = [
-    { id: 1, name: "Client 1", email: "client1@example.com" },
-    { id: 2, name: "Client 2", email: "client2@example.com" },
-    { id: 3, name: "Client 3", email: "client3@example.com" },
-    { id: 4, name: "Client 4", email: "client4@example.com" },
-    { id: 5, name: "Client 5", email: "client5@example.com" },
-  ];
+  // Charger les données de Supabase pour les colis
+  const fetchParcels = async () => {
+    const { data, error } = await supabase.from("colis").select("*");
+    if (!error) setParcels(data);
+  };
 
-  // Données statiques pour les colis
-  const parcels = [
-    { id: 1, name: "Colis 1", status: "En stock" },
-    { id: 2, name: "Colis 2", status: "En route" },
-    { id: 3, name: "Colis 3", status: "Expédié" },
-    { id: 4, name: "Colis 4", status: "En stock" },
-    { id: 5, name: "Colis 5", status: "En route" },
-  ];
+  // Charger les données de Supabase pour les retraits
+  const fetchWithdrawals = async () => {
+    const { data, error } = await supabase.from("withdrawals").select("*");
+    if (!error) setWithdrawals(data);
+  };
 
-  const totalClients = clients.length;
+  // Calculer le temps moyen de retrait en heures
+  const calculateAverageWithdrawalTime = () => {
+    if (withdrawals.length > 0) {
+      const totalTime = withdrawals.reduce((acc, withdrawal) => {
+        const createdAt = new Date(withdrawal.created_at).getTime();
+        const now = new Date().getTime();
+        const timeDifference = (now - createdAt) / 1000 / 60 / 60; // Différence en heures
+        return acc + timeDifference;
+      }, 0);
+      setAverageWithdrawalTime(totalTime / withdrawals.length); // Moyenne en heures
+    }
+  };
+
+  useEffect(() => {
+    fetchParcels();
+    fetchWithdrawals();
+  }, []);
+
+  useEffect(() => {
+    calculateAverageWithdrawalTime();
+  }, [parcels]);
+
+  const totalClients = 5; // Mettre à jour avec les données réelles des clients si nécessaire
   const totalParcels = parcels.length;
-  const totalWithdrawals = withdrawals.length;
+  const totalWithdrawals = parcels.filter(
+    (parcel) => parcel.statut === 3
+  ).length; // Retirer = statut 3
+  const totalExpeditions = parcels.filter(
+    (parcel) => parcel.statut === 2
+  ).length; // Expédié = statut 2
 
   // Comptage des statuts de colis
   const parcelStatusCount = parcels.reduce((acc, parcel) => {
-    acc[parcel.status] = (acc[parcel.status] || 0) + 1;
+    acc[parcel.statut] = (acc[parcel.statut] || 0) + 1;
     return acc;
   }, {} as { [key: string]: number });
 
-  // Données pour le graphique de statut des colis
+  // Mapping des statuts avec leurs labels
+  const statusLabels = {
+    0: "En stock",
+    1: "En route",
+    2: "Expédié",
+    3: "Retiré",
+  };
+
+  // Données pour le graphique de statut des colis avec les libellés
   const parcelData = {
-    labels: Object.keys(parcelStatusCount),
+    labels: Object.keys(parcelStatusCount).map(
+      (statut) => statusLabels[statut]
+    ),
     datasets: [
       {
         label: "Statut des Colis",
@@ -146,6 +109,7 @@ const Dashboard: React.FC = () => {
           "rgba(75, 192, 192, 0.6)",
           "rgba(153, 102, 255, 0.6)",
           "rgba(255, 99, 132, 0.6)",
+          "rgba(255, 206, 86, 0.6)",
         ],
       },
     ],
@@ -157,10 +121,7 @@ const Dashboard: React.FC = () => {
     datasets: [
       {
         label: "Comparaison",
-        data: [
-          totalWithdrawals,
-          parcels.filter((parcel) => parcel.status === "Expédié").length,
-        ],
+        data: [totalWithdrawals, totalExpeditions],
         backgroundColor: ["rgba(255, 159, 64, 0.6)", "rgba(54, 162, 235, 0.6)"],
       },
     ],
@@ -172,18 +133,25 @@ const Dashboard: React.FC = () => {
         <Typography variant="h6" className="font-bold">
           Tableau de Bord
         </Typography>
-        <IconButton style={{ float: "right" }} aria-label="refresh">
+        <IconButton
+          style={{ float: "right" }}
+          aria-label="refresh"
+          onClick={() => {
+            fetchParcels();
+            fetchWithdrawals();
+          }}
+        >
           <RefreshIcon />
         </IconButton>
       </div>
       <Grid container spacing={3}>
         <Grid item xs={12} sm={6} md={4}>
           <div>
-            <p className="mb-3">Nombre des colis</p>
+            <p className="mb-3">Temps moyen de retrait (minutes)</p>
             <Divider />
             <CardContent>
               <Typography variant="h3" align="center" color="primary">
-                {totalClients}
+                {averageWithdrawalTime.toFixed(2)} h
               </Typography>
             </CardContent>
           </div>

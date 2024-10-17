@@ -1,4 +1,3 @@
-import React from "react";
 import { useForm, SubmitHandler } from "react-hook-form";
 import {
   TextField,
@@ -30,7 +29,6 @@ const Login = () => {
   const onSubmit: SubmitHandler<ILoginForm> = (data) => {
     console.log("Détails de connexion utilisateur :", data);
 
-    // Simuler une connexion réussie et rediriger vers la page client
     navigate("/parcels"); // Redirection vers la page client
   };
 

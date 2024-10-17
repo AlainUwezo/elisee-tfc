@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { DataGrid } from "@mui/x-data-grid";
 import {
   Button,
@@ -9,51 +9,13 @@ import {
   DialogActions,
   Typography,
   IconButton,
+  CircularProgress,
 } from "@mui/material";
-import DeleteIcon from "@mui/icons-material/Delete"; // Import de l'icône de suppression
+import DeleteIcon from "@mui/icons-material/Delete";
 import { useNavigate } from "react-router-dom";
-import ViewParcel from "./ViewParcel"; // Importez le composant ViewParcel
+import ViewParcel from "./ViewParcel";
 import { Add } from "@mui/icons-material";
-
-const initialParcels = [
-  {
-    id: 1,
-    nom: "Colis A",
-    poids: 2.5,
-    prix: 20,
-    statut: 1,
-    jeton: "XYZ123",
-    clientId: 1,
-  },
-  {
-    id: 2,
-    nom: "Colis B",
-    poids: 1.2,
-    prix: 15,
-    statut: 2,
-    jeton: "ABC456",
-    clientId: 2,
-  },
-  {
-    id: 3,
-    nom: "Colis C",
-    poids: 3.0,
-    prix: 25,
-    statut: 2,
-    jeton: "DEF789",
-    clientId: 3,
-  },
-  {
-    id: 4,
-    nom: "Colis D",
-    poids: 2.0,
-    prix: 30,
-    statut: 0,
-    jeton: "GHI012",
-    clientId: 4,
-  },
-  // Ajoutez plus de colis si nécessaire
-];
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface Parcel {
   id: number;
@@ -61,28 +23,58 @@ interface Parcel {
   poids: number;
   prix: number;
   statut: number;
-  jeton: string;
-  clientId: number;
+  token: string;
+  client_nom: string;
+  client_email: string;
+  client_telephone: string;
+  expediteur_nom: string;
+  adresse: string;
 }
 
 const ParcelList: React.FC = () => {
-  const [parcels, setParcels] = useState<Parcel[]>(initialParcels);
+  const [parcels, setParcels] = useState<Parcel[]>([]);
   const [openDeleteDialog, setOpenDeleteDialog] = useState(false);
   const [parcelToDelete, setParcelToDelete] = useState<number | null>(null);
   const [openViewParcel, setOpenViewParcel] = useState(false);
   const [selectedParcelDetails, setSelectedParcelDetails] =
     useState<Parcel | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [parcelsChanged, setParcelsChanged] = useState(true);
 
   const navigate = useNavigate();
+
+  useEffect(() => {
+    const fetchParcels = async () => {
+      setLoading(true);
+      const { data, error } = await supabase.from("colis").select("*");
+
+      if (error) {
+        console.error("Erreur lors de la récupération des colis:", error);
+      } else {
+        setParcels(data);
+      }
+      setLoading(false);
+    };
+    fetchParcels();
+  }, [parcelsChanged]);
 
   const handleDelete = (id: number) => {
     setParcelToDelete(id);
     setOpenDeleteDialog(true);
   };
 
-  const confirmDelete = () => {
+  const confirmDelete = async () => {
     if (parcelToDelete !== null) {
-      setParcels(parcels.filter((parcel) => parcel.id !== parcelToDelete));
+      const { error } = await supabase
+        .from("colis")
+        .delete()
+        .match({ id: parcelToDelete });
+
+      if (error) {
+        console.error("Erreur lors de la suppression du colis:", error);
+      } else {
+        setParcels(parcels.filter((parcel) => parcel.id !== parcelToDelete));
+      }
     }
     setOpenDeleteDialog(false);
   };
@@ -100,16 +92,29 @@ const ParcelList: React.FC = () => {
     navigate("/add-colis");
   };
 
+  const getRowClassName = (params: any) => {
+    switch (params.row.statut) {
+      case 0:
+        return "bg-green-100";
+      case 1:
+        return "bg-yellow-100";
+      case 2:
+        return "bg-blue-100";
+      case 3:
+        return "bg-red-100";
+      case 4:
+        return "bg-red-200";
+      default:
+        return "";
+    }
+  };
+
   const columns = [
     { field: "id", headerName: "ID", width: 90 },
     { field: "nom", headerName: "Nom", width: 150 },
     { field: "poids", headerName: "Poids (kg)", type: "number", width: 120 },
     { field: "prix", headerName: "Prix ($)", type: "number", width: 120 },
-    {
-      field: "jeton",
-      headerName: "Jeton",
-      width: 150,
-    },
+    { field: "token", headerName: "Jeton", width: 150 },
     {
       field: "statut",
       headerName: "Statut",
@@ -120,17 +125,27 @@ const ParcelList: React.FC = () => {
             ? "En stock"
             : params.value === 1
             ? "En route"
-            : "Expédié"}
+            : params.value === 2
+            ? "Expédié"
+            : "Rétiré"}
         </Typography>
       ),
     },
+    { field: "client_nom", headerName: "Nom du Client", width: 150 },
+    { field: "client_email", headerName: "Email du Client", width: 150 },
+    {
+      field: "client_telephone",
+      headerName: "Téléphone du Client",
+      width: 150,
+    },
+    { field: "expediteur_nom", headerName: "Expéditeur", width: 150 },
+    { field: "adresse", headerName: "Adresse", width: 200 },
     {
       field: "action",
       headerName: "Actions",
       width: 200,
       renderCell: (params: any) => (
         <>
-          {/* Bouton supprimé */}
           <IconButton
             color="error"
             onClick={() => handleDelete(params.row.id)}
@@ -161,34 +176,41 @@ const ParcelList: React.FC = () => {
           startIcon={<Add />}
           color="primary"
           className="capitalize"
-          onClick={() => handleAddParcel()}
+          onClick={handleAddParcel}
         >
           Ajouter Colis
         </Button>
       </div>
-      <DataGrid
-        rows={parcels}
-        columns={columns}
-        pageSize={5}
-        rowsPerPageOptions={[5]}
-        autoHeight
-        disableSelectionOnClick
-        sx={{
-          border: "none",
-          "& .MuiDataGrid-columnHeaders": {
-            backgroundColor: "#f5f5f5",
-            fontWeight: "bold",
-          },
-          "& .MuiDataGrid-row": {
-            transition: "background-color 0.3s",
-            "&:hover": {
-              backgroundColor: "#f0f0f0",
-            },
-          },
-        }}
-      />
 
-      {/* Boîte de dialogue de confirmation de suppression */}
+      {loading ? (
+        <div className="flex justify-center items-center h-48">
+          <CircularProgress />
+        </div>
+      ) : (
+        <DataGrid
+          rows={parcels}
+          columns={columns}
+          pageSize={5}
+          rowsPerPageOptions={[5]}
+          autoHeight
+          disableSelectionOnClick
+          getRowClassName={getRowClassName} // Appliquez la fonction ici
+          sx={{
+            border: "none",
+            "& .MuiDataGrid-columnHeaders": {
+              backgroundColor: "#f5f5f5",
+              fontWeight: "bold",
+            },
+            "& .MuiDataGrid-row": {
+              transition: "background-color 0.3s",
+              "&:hover": {
+                backgroundColor: "#f0f0f0",
+              },
+            },
+          }}
+        />
+      )}
+
       <Dialog open={openDeleteDialog} onClose={cancelDelete}>
         <DialogTitle>Confirmation de Suppression</DialogTitle>
         <DialogContent>
@@ -204,21 +226,13 @@ const ParcelList: React.FC = () => {
         </DialogActions>
       </Dialog>
 
-      {/* Boîte de dialogue pour voir les détails du colis */}
       <Dialog open={openViewParcel} onClose={() => setOpenViewParcel(false)}>
         <DialogContent>
           {selectedParcelDetails && (
             <ViewParcel
               parcel={selectedParcelDetails}
-              client={{
-                nom: "Client A",
-                email: "client@example.com",
-                telephone: "0123456789",
-                expediteur: "Expéditeur A",
-                adresse: "123 Rue de Paris",
-              }} // Remplacez par les données du client appropriées
-              token={selectedParcelDetails.jeton}
               onClose={() => setOpenViewParcel(false)}
+              setParcelsChange={setParcelsChanged}
             />
           )}
         </DialogContent>

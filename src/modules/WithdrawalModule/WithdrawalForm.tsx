@@ -11,16 +11,16 @@ import {
   Select,
   InputLabel,
   FormControl,
+  CircularProgress, // Importez CircularProgress
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface WithdrawalFormProps {
   open: boolean;
   onClose: () => void;
   withdrawal: any | null;
   onSave: (withdrawal: any) => void;
-  clients: { id: number; name: string }[];
-  parcels: { id: number; token: string }[]; // Remplacer `name` par `token`
 }
 
 const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
@@ -28,50 +28,95 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
   onClose,
   withdrawal,
   onSave,
-  clients,
 }) => {
-  // Liste des jetons par défaut
-  const defaultParcels = [
-    { id: 1, token: "JETON123" },
-    { id: 2, token: "JETON456" },
-    { id: 3, token: "JETON789" },
-    { id: 4, token: "JETON101" },
-    { id: 5, token: "JETON202" },
-  ];
+  const [parcels, setParcels] = useState<
+    {
+      id: number;
+      token: string;
+      client_name: string;
+    }[]
+  >([]);
+  const [parcel, setParcel] = useState<{
+    id: number;
+    token: string;
+    client_name: string;
+  } | null>(null);
+  const [clientName, setClientName] = useState<string>(""); // État pour le nom du client
+  const [status, setStatus] = useState<number>(2); // Statut par défaut : "Expédié"
+  const [loading, setLoading] = useState<boolean>(false); // État pour le loader
 
-  const [client, setClient] = useState<{ id: number; name: string } | null>(
-    null
-  );
-  const [parcel, setParcel] = useState<{ id: number; token: string } | null>(
-    null
-  ); // Utiliser `token` au lieu de `name`
-  const [date, setDate] = useState<string>("");
-  const [status, setStatus] = useState<number>(3); // Statut par défaut : "Retiré"
+  useEffect(() => {
+    const loadParcels = async () => {
+      const { data: parcels, error } = await supabase
+        .from("colis")
+        .select("id, token, client_nom")
+        .neq("statut", 2)
+        .neq("statut", 3);
+
+      if (error) {
+        console.error("Error fetching parcels:", error);
+        return [];
+      }
+      setParcels(parcels);
+    };
+
+    loadParcels();
+  }, []);
 
   useEffect(() => {
     if (withdrawal) {
-      setClient(withdrawal.client);
       setParcel(withdrawal.parcel);
-      setDate(withdrawal.date);
+      setClientName(withdrawal.client_name); // Assurez-vous de mettre à jour le nom du client
       setStatus(withdrawal.status);
     } else {
-      setClient(null);
       setParcel(null);
-      // Date actuelle avec l'heure
-      const currentDateTime = new Date().toISOString().slice(0, 16); // YYYY-MM-DDTHH:mm
-      setDate(currentDateTime);
-      setStatus(3); // Statut "Retiré"
+      setClientName(""); // Réinitialiser le nom du client
+      setStatus(3); // Statut "Expédié"
     }
   }, [withdrawal]);
 
-  const handleSubmit = () => {
+  const handleParcelChange = (event: any, newValue: any) => {
+    setParcel(newValue);
+    if (newValue) {
+      setClientName(newValue.client_nom);
+    } else {
+      setClientName("");
+    }
+  };
+
+  const handleSubmit = async () => {
+    setLoading(true); // Démarrer le loader
     const newWithdrawal = {
-      id: withdrawal ? withdrawal.id : null,
-      client,
-      parcel,
-      date,
+      parcel_token: parcel?.token,
+      client_name: clientName, // Utilisez le nom du client mis à jour
       status,
     };
+
+    // Insérer ou mettre à jour le retrait
+    const { data, error } = await supabase
+      .from("withdrawals")
+      .insert([newWithdrawal]);
+
+    if (error) {
+      console.error("Error adding withdrawal:", error);
+      setLoading(false); // Arrêter le loader en cas d'erreur
+      return;
+    }
+
+    // Mettre à jour le statut du colis
+    const parcelUpdate = await supabase
+      .from("colis")
+      .update({ statut: status }) // Assurez-vous que le nom de la colonne est correct
+      .eq("token", parcel?.token); // Met à jour le colis avec le jeton concerné
+
+    if (parcelUpdate.error) {
+      console.error("Error updating parcel status:", parcelUpdate.error);
+    } else {
+      console.log("Parcel status updated:", parcelUpdate.data);
+    }
+
+    setLoading(false); // Arrêter le loader
+    console.log("Withdrawal added:", data);
     onSave(newWithdrawal);
     onClose();
   };
@@ -83,43 +128,24 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
       </DialogTitle>
       <DialogContent>
         <Autocomplete
-          options={clients}
-          getOptionLabel={(option) => option.name}
-          value={client}
-          onChange={(event, newValue) => setClient(newValue)}
-          renderInput={(params) => (
-            <TextField
-              {...params}
-              label="Nom du Client"
-              margin="normal"
-              fullWidth
-            />
-          )}
-        />
-        <Autocomplete
-          options={defaultParcels} // Utiliser la liste des jetons par défaut
-          getOptionLabel={(option) => option.token} // Affiche le jeton du colis
+          options={parcels} // Utiliser les jetons de colis récupérés depuis Supabase
+          getOptionLabel={(option) => option.token}
           value={parcel}
-          onChange={(event, newValue) => setParcel(newValue)}
+          onChange={handleParcelChange} // Utiliser la fonction pour mettre à jour le nom du client
           renderInput={(params) => (
             <TextField
               {...params}
-              label="Jeton du Colis" // Affiche le jeton du colis
+              label="Jeton du Colis"
               margin="normal"
               fullWidth
             />
           )}
         />
         <TextField
-          label="Date de Retrait"
-          type="datetime-local" // Format date + heure
-          value={date}
-          onChange={(e) => setDate(e.target.value)}
-          fullWidth
+          value={clientName} // Affichez le nom du client associé au jeton
           margin="normal"
-          InputLabelProps={{
-            shrink: true,
-          }}
+          disabled
+          fullWidth
         />
         <FormControl fullWidth margin="normal">
           <InputLabel>Statut</InputLabel>
@@ -127,10 +153,8 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
             value={status}
             onChange={(e) => setStatus(e.target.value as number)}
           >
-            <MenuItem value={3}>Retiré</MenuItem> {/* Statut "Retiré" */}
-            <MenuItem value={0}>En stock</MenuItem>
-            <MenuItem value={1}>En route</MenuItem>
             <MenuItem value={2}>Expédié</MenuItem>
+            <MenuItem value={3}>Retiré</MenuItem>
           </Select>
         </FormControl>
       </DialogContent>
@@ -138,7 +162,12 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
         <Button onClick={onClose} color="primary">
           Annuler
         </Button>
-        <Button onClick={handleSubmit} color="primary">
+        <Button
+          onClick={handleSubmit}
+          color="primary"
+          disabled={loading} // Désactiver le bouton pendant le chargement
+          endIcon={loading ? <CircularProgress size={20} /> : null} // Afficher le loader
+        >
           {withdrawal ? "Modifier" : "Ajouter"}
         </Button>
       </DialogActions>

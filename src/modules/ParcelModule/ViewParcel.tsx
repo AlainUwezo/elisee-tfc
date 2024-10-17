@@ -1,4 +1,5 @@
-import React, { useState } from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useEffect, useState } from "react";
 import {
   CardHeader,
   CardContent,
@@ -16,32 +17,34 @@ import {
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
-import { Parcel, Client } from "./types"; // Assurez-vous d'importer vos types correctement
+import { Parcel } from "./types"; // Assurez-vous d'importer vos types correctement
+import { supabase } from "../../lib/helpers/superbaseClient";
 
 interface ViewParcelProps {
   parcel: Parcel;
-  client: Client;
   token: string;
-  onClose: () => void; // Callback pour fermer la vue
+  onClose: () => void;
+  setParcelsChange: (prev: any) => void;
 }
 
 const ViewParcel: React.FC<ViewParcelProps> = ({
   parcel,
-  client,
   token,
   onClose,
+  setParcelsChange,
 }) => {
   const [isEditing, setIsEditing] = useState(false);
   const [editedParcel, setEditedParcel] = useState<Parcel>(parcel);
-  const [editedClient, setEditedClient] = useState<Client>(client);
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState({
     nomParcel: "",
     poidsParcel: "",
     prixParcel: "",
-    nomClient: "",
-    emailClient: "",
   });
+
+  useEffect(() => {
+    console.log("Colis", parcel);
+  }, [parcel]);
 
   // Valider les champs
   const validateFields = () => {
@@ -61,41 +64,66 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
     ) {
       errors.prixParcel = "Le prix doit être un nombre positif ou zéro.";
     }
-    if (!editedClient.nom) errors.nomClient = "Le nom du client est requis.";
-    if (
-      !editedClient.email ||
-      !/^[\w-.]+@([\w-]+\.)+[\w-]{2,4}$/.test(editedClient.email)
-    ) {
-      errors.emailClient = "L'email n'est pas valide.";
-    }
     setFieldErrors(errors);
     return Object.keys(errors).length === 0;
   };
 
   const handleEdit = () => {
-    setError(null); // Réinitialiser les erreurs lors de l'édition
+    setError(null);
     setIsEditing(true);
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validateFields()) {
       setError("Veuillez corriger les erreurs avant de continuer.");
       return;
     }
 
-    console.log("Données modifiées :", {
-      parcel: editedParcel,
-      client: editedClient,
-    });
+    const {
+      id,
+      nom,
+      poids,
+      prix,
+      statut,
+      token,
+      client_nom,
+      client_email,
+      client_telephone,
+      expediteur_nom,
+      adresse,
+    } = editedParcel;
+
+    const { error } = await supabase
+      .from("colis")
+      .update({
+        nom,
+        poids,
+        prix,
+        statut,
+        token,
+        client_nom,
+        client_email,
+        client_telephone,
+        expediteur_nom,
+        adresse,
+      })
+      .eq("id", id);
+
+    if (error) {
+      setError("Une erreur est survenue lors de la mise à jour du colis.");
+      console.error("Erreur de mise à jour :", error);
+      return;
+    }
+
+    console.log("Données modifiées :", editedParcel);
     setIsEditing(false);
+    onClose();
+
+    setParcelsChange((prev: any) => !prev);
   };
 
   const handleChangeParcel = (field: keyof Parcel, value: string) => {
     setEditedParcel((prev) => ({ ...prev, [field]: value }));
-  };
-
-  const handleChangeClient = (field: keyof Client, value: string) => {
-    setEditedClient((prev) => ({ ...prev, [field]: value }));
   };
 
   const handleStatusChange = (status: number) => {
@@ -107,18 +135,20 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
       <CardHeader
         title="Détails du Colis"
         action={
-          <IconButton
-            onClick={isEditing ? handleSave : handleEdit}
-            color="primary"
-          >
-            {isEditing ? <SaveIcon /> : <EditIcon />}
-          </IconButton>
+          parcel.statut == 0 && (
+            <IconButton
+              onClick={isEditing ? handleSave : handleEdit}
+              color="primary"
+            >
+              {isEditing ? <SaveIcon /> : <EditIcon />}
+            </IconButton>
+          )
         }
         titleTypographyProps={{ variant: "h5" }}
       />
       <CardContent className="border-none">
         <Box mb={2}>
-          <Chip label={`Jeton: ${token}`} color="success" />
+          <Chip label={`Jeton: ${parcel.token}`} color="success" />
         </Box>
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
@@ -138,18 +168,16 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
         <Grid container spacing={2}>
           <Grid item xs={6}>
             {isEditing ? (
-              <>
-                <TextField
-                  label="Nom"
-                  value={editedParcel.nom}
-                  onChange={(e) => handleChangeParcel("nom", e.target.value)}
-                  fullWidth
-                  required
-                  size="small"
-                  error={!!fieldErrors.nomParcel}
-                  helperText={fieldErrors.nomParcel}
-                />
-              </>
+              <TextField
+                label="Nom"
+                value={editedParcel.nom}
+                onChange={(e) => handleChangeParcel("nom", e.target.value)}
+                fullWidth
+                required
+                size="small"
+                error={!!fieldErrors.nomParcel}
+                helperText={fieldErrors.nomParcel}
+              />
             ) : (
               <Typography variant="body1">
                 <strong>Nom:</strong> {editedParcel.nom}
@@ -158,18 +186,16 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
           </Grid>
           <Grid item xs={6}>
             {isEditing ? (
-              <>
-                <TextField
-                  label="Poids"
-                  value={editedParcel.poids}
-                  onChange={(e) => handleChangeParcel("poids", e.target.value)}
-                  fullWidth
-                  size="small"
-                  required
-                  error={!!fieldErrors.poidsParcel}
-                  helperText={fieldErrors.poidsParcel}
-                />
-              </>
+              <TextField
+                label="Poids"
+                value={editedParcel.poids}
+                onChange={(e) => handleChangeParcel("poids", e.target.value)}
+                fullWidth
+                size="small"
+                required
+                error={!!fieldErrors.poidsParcel}
+                helperText={fieldErrors.poidsParcel}
+              />
             ) : (
               <Typography variant="body1">
                 <strong>Poids:</strong> {editedParcel.poids} kg
@@ -178,18 +204,16 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
           </Grid>
           <Grid item xs={6}>
             {isEditing ? (
-              <>
-                <TextField
-                  label="Prix"
-                  value={editedParcel.prix}
-                  onChange={(e) => handleChangeParcel("prix", e.target.value)}
-                  fullWidth
-                  size="small"
-                  required
-                  error={!!fieldErrors.prixParcel}
-                  helperText={fieldErrors.prixParcel}
-                />
-              </>
+              <TextField
+                label="Prix"
+                value={editedParcel.prix}
+                onChange={(e) => handleChangeParcel("prix", e.target.value)}
+                fullWidth
+                size="small"
+                required
+                error={!!fieldErrors.prixParcel}
+                helperText={fieldErrors.prixParcel}
+              />
             ) : (
               <Typography variant="body1">
                 <strong>Prix:</strong> ${editedParcel.prix}
@@ -203,7 +227,9 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
                 ? "En stock"
                 : editedParcel.statut === 1
                 ? "En route"
-                : "Expédié"}
+                : editedParcel.statut === 2
+                ? "Expédié"
+                : "Retiré"}
             </Typography>
           </Grid>
         </Grid>
@@ -239,20 +265,6 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
               >
                 En route
               </Button>
-              <Button
-                onClick={() => handleStatusChange(2)}
-                sx={{
-                  backgroundColor:
-                    editedParcel.statut === 2 ? "primary.main" : "inherit",
-                  color: editedParcel.statut === 2 ? "white" : "inherit",
-                  "&:hover": {
-                    backgroundColor:
-                      editedParcel.statut === 2 ? "primary.dark" : "inherit",
-                  },
-                }}
-              >
-                Expédié
-              </Button>
             </ButtonGroup>
           </Box>
         )}
@@ -270,82 +282,25 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
         <Paper elevation={0}>
           <Grid container spacing={2}>
             <Grid item xs={6}>
-              {isEditing ? (
-                <>
-                  <TextField
-                    label="Nom"
-                    value={editedClient.nom}
-                    onChange={(e) => handleChangeClient("nom", e.target.value)}
-                    fullWidth
-                    required
-                    size="small"
-                    error={!!fieldErrors.nomClient}
-                    helperText={fieldErrors.nomClient}
-                  />
-                </>
-              ) : (
-                <Typography variant="body1">
-                  <strong>Nom:</strong> {editedClient.nom}
-                </Typography>
-              )}
+              <Typography variant="body1">
+                <strong>Nom du client:</strong> {editedParcel.client_nom}
+              </Typography>
             </Grid>
             <Grid item xs={6}>
-              {isEditing ? (
-                <>
-                  <TextField
-                    label="Email"
-                    value={editedClient.email}
-                    onChange={(e) =>
-                      handleChangeClient("email", e.target.value)
-                    }
-                    fullWidth
-                    required
-                    size="small"
-                    error={!!fieldErrors.emailClient}
-                    helperText={fieldErrors.emailClient}
-                  />
-                </>
-              ) : (
-                <Typography variant="body1">
-                  <strong>Email:</strong> {editedClient.email}
-                </Typography>
-              )}
+              <Typography variant="body1">
+                <strong>Email du client:</strong> {editedParcel.client_email}
+              </Typography>
             </Grid>
             <Grid item xs={6}>
-              {isEditing ? (
-                <TextField
-                  label="Téléphone"
-                  value={editedClient.telephone}
-                  size="small"
-                  onChange={(e) =>
-                    handleChangeClient("telephone", e.target.value)
-                  }
-                  fullWidth
-                  required
-                />
-              ) : (
-                <Typography variant="body1">
-                  <strong>Téléphone:</strong> {editedClient.telephone}
-                </Typography>
-              )}
+              <Typography variant="body1">
+                <strong>Téléphone du client:</strong>{" "}
+                {editedParcel.client_telephone}
+              </Typography>
             </Grid>
             <Grid item xs={6}>
-              {isEditing ? (
-                <TextField
-                  label="Expéditeur"
-                  size="small"
-                  value={editedClient.expediteur}
-                  onChange={(e) =>
-                    handleChangeClient("expediteur", e.target.value)
-                  }
-                  fullWidth
-                  required
-                />
-              ) : (
-                <Typography variant="body1">
-                  <strong>Expéditeur:</strong> {editedClient.expediteur}
-                </Typography>
-              )}
+              <Typography variant="body1">
+                <strong>Expéditeur:</strong> {editedParcel.expediteur_nom}
+              </Typography>
             </Grid>
           </Grid>
         </Paper>
