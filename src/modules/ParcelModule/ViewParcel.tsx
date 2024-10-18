@@ -14,11 +14,13 @@ import {
   IconButton,
   Alert,
   Button,
+  CircularProgress,
 } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import SaveIcon from "@mui/icons-material/Save";
 import { Parcel } from "./types"; // Assurez-vous d'importer vos types correctement
 import { supabase } from "../../lib/helpers/superbaseClient";
+import axios from "axios";
 
 interface ViewParcelProps {
   parcel: Parcel;
@@ -41,6 +43,7 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
     poidsParcel: "",
     prixParcel: "",
   });
+  const [loading, setLoading] = useState(false);
 
   useEffect(() => {
     console.log("Colis", parcel);
@@ -78,6 +81,7 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
       setError("Veuillez corriger les erreurs avant de continuer.");
       return;
     }
+    setLoading(true);
 
     const {
       id,
@@ -85,10 +89,8 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
       poids,
       prix,
       statut,
-      token,
       client_nom,
       client_email,
-      client_telephone,
       expediteur_nom,
       adresse,
     } = editedParcel;
@@ -100,25 +102,49 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
         poids,
         prix,
         statut,
-        token,
         client_nom,
         client_email,
-        client_telephone,
         expediteur_nom,
         adresse,
       })
       .eq("id", id);
 
     if (error) {
+      setLoading(false);
       setError("Une erreur est survenue lors de la mise à jour du colis.");
       console.error("Erreur de mise à jour :", error);
       return;
     }
 
-    console.log("Données modifiées :", editedParcel);
-    setIsEditing(false);
-    onClose();
+    // Envoi de l'email de suivi après la mise à jour via axios
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/send-tracking-update",
+        {
+          to: client_email,
+          token: parcel.token,
+          status:
+            statut === 0 ? "En stock" : statut === 1 ? "En route" : "Retiré",
+          clientName: client_nom,
+          estimatedArrival: new Date().toLocaleDateString(),
+        }
+      );
 
+      if (response.status !== 200) {
+        throw new Error("Erreur lors de l'envoi de l'email de suivi.");
+      }
+
+      console.log(response.data); // Message de succès de l'API
+      setIsEditing(false);
+    } catch (mailError) {
+      console.error("Erreur lors de l'envoi de l'email de suivi :", mailError);
+      setError("Erreur lors de l'envoi de l'email de suivi.");
+    } finally {
+      setLoading(false);
+    }
+
+    console.log("Données modifiées :", editedParcel);
+    onClose();
     setParcelsChange((prev: any) => !prev);
   };
 
@@ -135,12 +161,19 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
       <CardHeader
         title="Détails du Colis"
         action={
-          parcel.statut == 0 && (
+          parcel.statut === 0 && (
             <IconButton
               onClick={isEditing ? handleSave : handleEdit}
               color="primary"
+              disabled={loading}
             >
-              {isEditing ? <SaveIcon /> : <EditIcon />}
+              {loading ? (
+                <CircularProgress size={24} />
+              ) : isEditing ? (
+                <SaveIcon />
+              ) : (
+                <EditIcon />
+              )}
             </IconButton>
           )
         }
@@ -281,25 +314,44 @@ const ViewParcel: React.FC<ViewParcelProps> = ({
         </Typography>
         <Paper elevation={0}>
           <Grid container spacing={2}>
+            <Grid item xs={4}>
+              <Typography variant="body1">
+                <strong>Nom:</strong> {editedParcel.client_nom}
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="body1">
+                <strong>Email:</strong> {editedParcel.client_email}
+              </Typography>
+            </Grid>
+            <Grid item xs={4}>
+              <Typography variant="body1">
+                <strong>Téléphone:</strong> {editedParcel.client_telephone}
+              </Typography>
+            </Grid>
+          </Grid>
+        </Paper>
+
+        <Divider sx={{ marginY: 2 }} />
+
+        {/* Expediteur Information */}
+        <Typography
+          variant="body1"
+          className="text-slate-500 mb-5"
+          gutterBottom
+        >
+          Informations de l'expéditeur
+        </Typography>
+        <Paper elevation={0}>
+          <Grid container spacing={2}>
             <Grid item xs={6}>
               <Typography variant="body1">
-                <strong>Nom du client:</strong> {editedParcel.client_nom}
+                <strong>Nom:</strong> {editedParcel.expediteur_nom}
               </Typography>
             </Grid>
             <Grid item xs={6}>
               <Typography variant="body1">
-                <strong>Email du client:</strong> {editedParcel.client_email}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body1">
-                <strong>Téléphone du client:</strong>{" "}
-                {editedParcel.client_telephone}
-              </Typography>
-            </Grid>
-            <Grid item xs={6}>
-              <Typography variant="body1">
-                <strong>Expéditeur:</strong> {editedParcel.expediteur_nom}
+                <strong>Adresse:</strong> {editedParcel.adresse}
               </Typography>
             </Grid>
           </Grid>

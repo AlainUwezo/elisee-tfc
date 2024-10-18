@@ -1,4 +1,4 @@
-import React, { useState, ChangeEvent, FormEvent } from "react";
+import React, { useState, ChangeEvent, FormEvent, useEffect } from "react";
 import {
   Container,
   TextField,
@@ -17,7 +17,7 @@ interface PackageStatus {
   statut: number;
   description: string;
   nom: string;
-  client_name: string;
+  client_nom: string;
   client_expediteur: string;
   client_telephone: string;
   created_at: string;
@@ -45,14 +45,29 @@ const CheckParcelForm: React.FC = () => {
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
+  const fetchData = async () => {
+    const { data, error } = await supabase.from("colis").select("*");
+    if (error) {
+      console.error("Erreur lors de la récupération des colis :", error);
+    } else {
+      console.log(data);
+    }
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
   const fetchPackageStatus = async (token: string) => {
     setLoading(true);
     setError(null);
+
     const { data, error } = await supabase
       .from("colis")
       .select("*")
       .eq("token", token)
       .single();
+    console.log("Bonjour Alain");
 
     if (error || !data) {
       setError("Colis non trouvé ou erreur lors de la récupération.");
@@ -65,7 +80,7 @@ const CheckParcelForm: React.FC = () => {
       statut: data.statut,
       description: getStatusText(data.statut),
       nom: data.nom,
-      client_name: data.client_name,
+      client_nom: data.client_nom,
       client_expediteur: data.expediteur_nom,
       client_telephone: data.client_telephone,
       created_at: data.created_at,
@@ -136,7 +151,7 @@ const CheckParcelForm: React.FC = () => {
                 <strong>Nom du colis : </strong> {status.nom}
               </Typography>
               <Typography variant="body1">
-                <strong>Nom du destinataire : </strong> {status.client_name}
+                <strong>Nom du destinataire : </strong> {status.client_nom}
               </Typography>
               <Typography variant="body1">
                 <strong>Nom de l'expéditeur : </strong>{" "}

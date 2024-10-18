@@ -13,7 +13,7 @@ import {
   Paper,
   Snackbar,
   Alert,
-  CircularProgress, // Importer CircularProgress pour le loader
+  CircularProgress,
 } from "@mui/material";
 import {
   Add,
@@ -25,6 +25,7 @@ import {
 } from "@mui/icons-material";
 import PageContainer from "../common/layouts/PageContainer";
 import { supabase } from "../../lib/helpers/superbaseClient";
+import axios from "axios"; // Importer Axios
 
 // Fonction pour générer un jeton unique de 8 caractères
 const generateUniqueToken = (clientName: string): string => {
@@ -72,12 +73,10 @@ const AjoutColis: React.FC = () => {
       expediteurNom: "",
     };
 
-    // Validation pour les détails du colis
+    // Validation des champs
     if (!nom) newErrors.nom = "Veuillez remplir le nom.";
     if (!poids) newErrors.poids = "Veuillez remplir le poids.";
     if (!prix) newErrors.prix = "Veuillez remplir le prix.";
-
-    // Validation pour les détails du client
     if (!clientNom) newErrors.clientNom = "Veuillez entrer le nom du client.";
     if (!clientEmail)
       newErrors.clientEmail = "Veuillez entrer l'email du client.";
@@ -109,9 +108,8 @@ const AjoutColis: React.FC = () => {
 
     setLoading(true); // Activer le loader
 
+    // Insertion dans la base de données
     const { data, error } = await supabase.from("colis").insert([newParcel]);
-
-    setLoading(false); // Désactiver le loader
 
     if (error) {
       console.error("Erreur lors de l'ajout du colis:", error);
@@ -119,10 +117,33 @@ const AjoutColis: React.FC = () => {
     }
 
     console.log("Colis ajouté:", data);
-    setSuccessMessage("Colis ajouté avec succès !");
-    setOpenSnackbar(true);
 
-    // Réinitialiser le formulaire
+    // Envoyer un email après l'ajout du colis
+    try {
+      const emailResponse = await axios.post(
+        "http://localhost:3000/send-email",
+        {
+          to: clientEmail,
+          token: jeton,
+          status: statut === 0 ? "En stock" : "En route",
+          senderName: expediteurNom,
+          clientName: clientNom,
+          phone: clientTelephone,
+          date: new Date().toISOString().split("T")[0],
+        }
+      );
+
+      console.log("Email envoyé avec succès", emailResponse.data);
+      setLoading(false);
+
+      // Afficher un message de succès
+      setSuccessMessage("Colis ajouté et email envoyé avec succès !");
+      setOpenSnackbar(true);
+    } catch (error) {
+      console.error("Erreur lors de l'envoi de l'email:", error);
+    }
+
+    // Réinitialiser le formulaire après soumission réussie
     setNom("");
     setPoids("");
     setPrix("");
@@ -273,7 +294,6 @@ const AjoutColis: React.FC = () => {
               }}
               error={!!errors.clientEmail}
               helperText={errors.clientEmail}
-              type="email"
             />
             <TextField
               label="Téléphone"
@@ -291,10 +311,9 @@ const AjoutColis: React.FC = () => {
               }}
               error={!!errors.clientTelephone}
               helperText={errors.clientTelephone}
-              type="tel"
             />
             <TextField
-              label="Nom de l'expéditeur"
+              label="Nom de l'Expéditeur"
               variant="outlined"
               fullWidth
               margin="normal"
@@ -314,38 +333,31 @@ const AjoutColis: React.FC = () => {
           </Grid>
         </Grid>
 
-        {/* Affichage du loader pendant la soumission */}
-        {loading && (
-          <div style={{ textAlign: "center", margin: "20px 0" }}>
-            <CircularProgress />
-            <Typography variant="body1">En cours de soumission...</Typography>
-          </div>
-        )}
-
         <Button
           variant="contained"
           color="primary"
           fullWidth
           onClick={handleSubmit}
-          disabled={loading} // Désactiver le bouton pendant la soumission
+          style={{ marginTop: "20px" }}
+          disabled={loading} // Désactiver le bouton si le formulaire est en cours de traitement
         >
-          Ajouter le Colis
+          {loading ? <CircularProgress size={24} /> : "Ajouter Colis"}
         </Button>
-      </Paper>
 
-      <Snackbar
-        open={openSnackbar}
-        autoHideDuration={6000}
-        onClose={handleCloseSnackbar}
-      >
-        <Alert
+        <Snackbar
+          open={openSnackbar}
+          autoHideDuration={6000}
           onClose={handleCloseSnackbar}
-          severity="success"
-          sx={{ width: "100%" }}
         >
-          {successMessage}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleCloseSnackbar}
+            severity="success"
+            sx={{ width: "100%" }}
+          >
+            {successMessage}
+          </Alert>
+        </Snackbar>
+      </Paper>
     </PageContainer>
   );
 };

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   TextField,
   Button,
@@ -14,7 +14,7 @@ import {
 import { useForm, SubmitHandler } from "react-hook-form";
 import { useAuth } from "../../contexts/AuthContext";
 import LockOutlinedIcon from "@mui/icons-material/LockOutlined";
-import { Link, useNavigate } from "react-router-dom"; // Importation de useNavigate
+import { Link, useNavigate } from "react-router-dom";
 
 interface SignInFormData {
   email: string;
@@ -40,20 +40,6 @@ export default function SignIn() {
     setLoading(true);
     try {
       await signIn(email, password);
-
-      //   if (userInfo?.role === "ROLE_ADMIN") {
-      //     navigate("/dashboard");
-      //   } else {
-      //     if (userInfo?.role === "ROLE_RETRAIT") {
-      //       navigate("/withdrawals");
-      //     } else {
-      //       if (userInfo?.role === "ROLE_COLIS") {
-      //         navigate("/parcels");
-      //       } else {
-      navigate("/");
-      //   }
-      // }
-      //   }
     } catch (err: any) {
       setError(
         "Impossible de se connecter. Veuillez vérifier vos identifiants."
@@ -63,6 +49,21 @@ export default function SignIn() {
       setLoading(false);
     }
   };
+
+  // Utilisation de useEffect pour rediriger après avoir récupéré userInfo
+  useEffect(() => {
+    if (userInfo) {
+      if (userInfo.role === "ROLE_ADMIN") {
+        navigate("/dashboard");
+      } else if (userInfo.role === "ROLE_RETRAIT") {
+        navigate("/withdrawals");
+      } else if (userInfo.role === "ROLE_COLIS") {
+        navigate("/parcels");
+      } else {
+        navigate("/parcels");
+      }
+    }
+  }, [userInfo, navigate]); // Déclenche le useEffect quand userInfo change
 
   return (
     <Container component="main" maxWidth="xs">

@@ -143,7 +143,7 @@ const ParcelList: React.FC = () => {
     {
       field: "action",
       headerName: "Actions",
-      width: 200,
+      width: 250,
       renderCell: (params: any) => (
         <>
           <IconButton

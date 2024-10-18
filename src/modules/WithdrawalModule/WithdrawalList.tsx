@@ -8,11 +8,14 @@ import {
   DialogActions,
   Typography,
   IconButton,
+  CircularProgress,
+  DialogContent,
 } from "@mui/material";
 import WithdrawalForm from "./WithdrawalForm";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Add } from "@mui/icons-material";
 import { supabase } from "../../lib/helpers/superbaseClient";
+import axios from "axios";
 
 const WithdrawalList: React.FC = () => {
   const [withdrawals, setWithdrawals] = useState<any[]>([]);
@@ -25,6 +28,7 @@ const WithdrawalList: React.FC = () => {
     null
   );
   const [withdrawalsChanged, setWithdrawalsChanged] = useState<boolean>(false);
+  const [loading, setLoading] = useState<boolean>(false); // Nouvel état pour le chargement
 
   useEffect(() => {
     const loadWithdrawals = async () => {
@@ -35,7 +39,7 @@ const WithdrawalList: React.FC = () => {
       } else {
         const formattedWithdrawals = data.map(
           (withdrawal: any, index: number) => ({
-            id: withdrawal.id || `custom-id-${index}`, // Add a fallback id if withdrawal.id doesn't exist
+            id: withdrawal.id || `custom-id-${index}`,
             client: { name: withdrawal.client_name },
             parcel: { token: withdrawal.parcel_token },
             date: new Date(withdrawal.created_at).toLocaleString(),
@@ -61,6 +65,7 @@ const WithdrawalList: React.FC = () => {
   };
 
   const confirmDelete = async () => {
+    setLoading(true); // Démarrer le chargement
     if (withdrawalToDelete !== null) {
       const { error } = await supabase
         .from("withdrawals")
@@ -78,6 +83,7 @@ const WithdrawalList: React.FC = () => {
         console.log(`Retrait supprimé avec l'ID: ${withdrawalToDelete}`);
       }
     }
+    setLoading(false); // Terminer le chargement
     setOpenDeleteDialog(false);
   };
 
@@ -91,10 +97,10 @@ const WithdrawalList: React.FC = () => {
   };
 
   const handleStatusChange = async (withdrawal: any) => {
-    const newWithdrawalStatus = withdrawal.status === 2 ? 3 : 2; // Changer le statut du retrait
-    const newParcelStatus = getParcelStatus(newWithdrawalStatus); // Obtenir le nouveau statut du colis
+    setLoading(true); // Démarrer le chargement
+    const newWithdrawalStatus = withdrawal.status === 2 ? 3 : 2;
+    const newParcelStatus = getParcelStatus(newWithdrawalStatus);
 
-    // Mettre à jour le statut dans la table withdrawals
     const { error: withdrawalError } = await supabase
       .from("withdrawals")
       .update({ status: newWithdrawalStatus })
@@ -102,26 +108,52 @@ const WithdrawalList: React.FC = () => {
 
     if (withdrawalError) {
       console.error("Error updating withdrawal status:", withdrawalError);
+      setLoading(false); // Terminer le chargement en cas d'erreur
       return;
     }
 
-    // Mettre à jour le statut du colis dans la table colis
-    const { error: parcelError } = await supabase
+    const { data: parcelData, error: parcelError } = await supabase
       .from("colis")
-      .update({ statut: newWithdrawalStatus })
-      .match({ token: withdrawal.parcel.token });
+      .update({ statut: newParcelStatus })
+      .match({ token: withdrawal.parcel.token })
+      .select("client_email, client_nom");
 
     if (parcelError) {
       console.error("Error updating parcel status:", parcelError);
+      setLoading(false); // Terminer le chargement en cas d'erreur
       return;
     }
 
-    // Mettre à jour l'état local pour le retrait
+    const clientEmail = parcelData[0]?.client_email;
+    const clientName = parcelData[0]?.client_nom;
+
+    try {
+      const response = await axios.post(
+        "http://localhost:3000/send-tracking-update",
+        {
+          to: clientEmail,
+          token: withdrawal.parcel.token,
+          status: newParcelStatus === 2 ? "Expédié" : "Retiré",
+          clientName: clientName,
+          estimatedArrival: new Date().toLocaleDateString(),
+        }
+      );
+
+      if (response.status !== 200) {
+        throw new Error("Erreur lors de l'envoi de l'email de suivi.");
+      }
+
+      console.log(response.data);
+    } catch (mailError) {
+      console.error("Erreur lors de l'envoi de l'email de suivi :", mailError);
+    }
+
     setWithdrawals(
       withdrawals.map((w) =>
         w.id === withdrawal.id ? { ...w, status: newWithdrawalStatus } : w
       )
     );
+    setLoading(false); // Terminer le chargement
   };
 
   const getStatusColor = (status) => {
@@ -187,8 +219,9 @@ const WithdrawalList: React.FC = () => {
               variant="outlined"
               color="primary"
               onClick={() => handleStatusChange(row)} // Gérer le changement de statut
+              disabled={loading} // Désactiver le bouton pendant le chargement
             >
-              {buttonText}
+              {loading ? <CircularProgress size={24} /> : buttonText}
             </Button>
             <IconButton
               color="error"
@@ -226,21 +259,15 @@ const WithdrawalList: React.FC = () => {
         rowsPerPageOptions={[5]}
         autoHeight
         disableSelectionOnClick
-        getRowId={(row) => row.id || row.parcel_token} // Use parcel_token as fallback if id is missing
+        getRowId={(row) => row.id || row.parcel_token}
         sx={{
           border: "none",
           "& .MuiDataGrid-columnHeaders": {
             backgroundColor: "#f5f5f5",
-            fontWeight: "bold",
-          },
-          "& .MuiDataGrid-row": {
-            "&:hover": {
-              backgroundColor: "#f0f0f0",
-            },
+            fontWeight: "600",
           },
         }}
       />
-
       {/* Dialog for adding/updating withdrawals */}
       <Dialog open={openForm} onClose={() => setOpenForm(false)}>
         <WithdrawalForm
@@ -261,16 +288,22 @@ const WithdrawalList: React.FC = () => {
           }}
         />
       </Dialog>
-
-      {/* Dialog for delete confirmation */}
-      <Dialog open={openDeleteDialog} onClose={cancelDelete}>
-        <DialogTitle>Confirmation de Suppression</DialogTitle>
+      <Dialog
+        open={openDeleteDialog}
+        onClose={cancelDelete}
+        aria-labelledby="alert-dialog-title"
+        aria-describedby="alert-dialog-description"
+      >
+        <DialogTitle id="alert-dialog-title">{"Supprimer retrait"}</DialogTitle>
+        <DialogContent>
+          {"Êtes-vous sûr de vouloir supprimer ce retrait ?"}
+        </DialogContent>
         <DialogActions>
           <Button onClick={cancelDelete} color="primary">
             Annuler
           </Button>
-          <Button onClick={confirmDelete} color="secondary">
-            Supprimer
+          <Button onClick={confirmDelete} color="primary" disabled={loading}>
+            {loading ? <CircularProgress size={24} /> : "Confirmer"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -9,7 +9,6 @@ import React, {
 import { User } from "@supabase/supabase-js";
 import { supabase } from "../lib/helpers/superbaseClient";
 
-// Interface pour les informations supplémentaires de l'utilisateur
 interface UserInfo {
   user_name: string;
   role: string;
@@ -17,10 +16,9 @@ interface UserInfo {
   created_at: string;
 }
 
-// Interface pour le contexte d'authentification
 interface AuthContextType {
   user: User | null;
-  userInfo: UserInfo | null; // Ajout des informations utilisateur
+  userInfo: UserInfo | null;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
@@ -46,19 +44,18 @@ interface Props {
 // Fournisseur du contexte d'authentification
 export const AuthProvider: React.FC<Props> = ({ children }) => {
   const [user, setUser] = useState<User | null>(null);
-  const [userInfo, setUserInfo] = useState<UserInfo | null>(null); // État pour les infos de la table User
+  const [userInfo, setUserInfo] = useState<UserInfo | null>(null);
 
   useEffect(() => {
     const fetchSession = async () => {
       const { data: sessionData } = await supabase.auth.getSession();
       const currentUser = sessionData.session?.user ?? null;
-
-      setUser(currentUser);
-
-      // Si l'utilisateur est connecté, récupérer les informations supplémentaires
       if (currentUser) {
         await fetchUserInfo(currentUser.id);
+      } else {
+        setUserInfo(null);
       }
+      setUser(currentUser);
     };
 
     fetchSession();
@@ -67,12 +64,6 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       async (_event, session) => {
         const currentUser = session?.user ?? null;
         setUser(currentUser);
-
-        if (currentUser) {
-          await fetchUserInfo(currentUser.id); // Récupérer les infos de la table User
-        } else {
-          setUserInfo(null); // Réinitialiser les infos utilisateur à la déconnexion
-        }
       }
     );
 
@@ -81,13 +72,12 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     };
   }, []);
 
-  // Fonction pour récupérer les informations de la table User
   const fetchUserInfo = async (auth_id: string) => {
     const { data, error } = await supabase
-      .from("User") // Nom de ta table dans Supabase
+      .from("Account")
       .select("user_name, role, auth_id, created_at")
       .eq("auth_id", auth_id)
-      .single(); // On suppose qu'un seul utilisateur correspond à cet auth_id
+      .single();
 
     if (error) {
       console.error(
@@ -98,7 +88,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
 
     if (data) {
-      setUserInfo(data); // Mettre à jour les informations de l'utilisateur dans l'état
+      setUserInfo(data);
     }
   };
 
@@ -114,9 +104,8 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
 
     setUser(data.user);
-
     if (data.user) {
-      await fetchUserInfo(data.user.id); // Récupérer les infos après connexion
+      await fetchUserInfo(data.user.id);
     }
   };
 
@@ -128,10 +117,6 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
     }
 
     setUser(data.user);
-
-    if (data.user) {
-      await fetchUserInfo(data.user.id); // Récupérer les infos après inscription
-    }
   };
 
   const signOut = async (): Promise<void> => {
@@ -141,7 +126,7 @@ export const AuthProvider: React.FC<Props> = ({ children }) => {
       throw error;
     }
     setUser(null);
-    setUserInfo(null); // Réinitialiser les informations utilisateur
+    setUserInfo(null);
   };
 
   return (

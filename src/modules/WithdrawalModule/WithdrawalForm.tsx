@@ -15,6 +15,7 @@ import {
 } from "@mui/material";
 import Autocomplete from "@mui/material/Autocomplete";
 import { supabase } from "../../lib/helpers/superbaseClient";
+import axios from "axios"; // Importez axios pour l'envoi d'e-mail
 
 interface WithdrawalFormProps {
   open: boolean;
@@ -33,13 +34,15 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
     {
       id: number;
       token: string;
-      client_name: string;
+      client_nom: string;
+      client_email: string; // Ajoutez l'email du client
     }[]
   >([]);
   const [parcel, setParcel] = useState<{
     id: number;
     token: string;
-    client_name: string;
+    client_nom: string;
+    client_email: string; // Ajoutez l'email du client
   } | null>(null);
   const [clientName, setClientName] = useState<string>(""); // État pour le nom du client
   const [status, setStatus] = useState<number>(2); // Statut par défaut : "Expédié"
@@ -49,7 +52,7 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
     const loadParcels = async () => {
       const { data: parcels, error } = await supabase
         .from("colis")
-        .select("id, token, client_nom")
+        .select("id, token, client_nom, client_email") // Récupérez l'email du client
         .neq("statut", 2)
         .neq("statut", 3);
 
@@ -113,9 +116,34 @@ const WithdrawalForm: React.FC<WithdrawalFormProps> = ({
       console.error("Error updating parcel status:", parcelUpdate.error);
     } else {
       console.log("Parcel status updated:", parcelUpdate.data);
+
+      try {
+        const response = await axios.post(
+          "http://localhost:3000/send-tracking-update",
+          {
+            to: parcel?.client_email,
+            token: parcel?.token,
+            status: status === 2 ? "Expédié" : "Retiré",
+            clientName: parcel?.client_nom,
+            estimatedArrival: new Date().toLocaleDateString(),
+          }
+        );
+
+        if (response.status !== 200) {
+          throw new Error("Erreur lors de l'envoi de l'email de suivi.");
+        }
+
+        console.log(response.data); // Message de succès de l'API
+      } catch (mailError) {
+        console.error(
+          "Erreur lors de l'envoi de l'email de suivi :",
+          mailError
+        );
+      } finally {
+        setLoading(false);
+      }
     }
 
-    setLoading(false); // Arrêter le loader
     console.log("Withdrawal added:", data);
     onSave(newWithdrawal);
     onClose();
